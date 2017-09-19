@@ -2,28 +2,21 @@
 
 namespace App;
 
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
-class User extends Authenticatable
-{
-    use Notifiable;
+/**
+ * @property int id
+ * @property string installation_id
+ * @property string device
+ * @property string data
+ * @property string cookies
+ * @property int logged_count
+ * @property int run_count
+ * @property string last_login
+ * @property Carbon created_at
+ * @property Carbon updated_at
+ */
+class User extends Model {
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
-    protected $fillable = [
-        'name', 'email', 'password',
-    ];
-
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
-    protected $hidden = [
-        'password', 'remember_token',
-    ];
 }
