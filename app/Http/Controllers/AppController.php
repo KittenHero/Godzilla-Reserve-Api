@@ -8,10 +8,17 @@ use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\View\View;
 use stdClass;
 
 class AppController extends Controller {
 
+    /**
+     * grab program from time
+     *
+     * @var $request Request
+     * @return string
+     */
     public function getProgramWithDate(Request $request) {
         $json = new stdClass();
 
@@ -39,6 +46,12 @@ class AppController extends Controller {
         ]);
     }
 
+    /**
+     * grab user data
+     *
+     * @var $lastRes string
+     * @return array
+     */
     public static function grabUserData($lastRes) {
         // grab user name
         preg_match_all("/<span id=\"LbFName\">(.+?)<\/span>/", $lastRes, $out);
@@ -59,6 +72,13 @@ class AppController extends Controller {
         return compact('name', 'card', 'charge', 'date');
     }
 
+    /**
+     * grab program array
+     *
+     * @var $date string
+     * @var $lastRes string
+     * @return array
+     */
     public static function grabUserProgram($date, $lastRes) {
         // create empty array for food program
         $program = [];
@@ -97,5 +117,24 @@ class AppController extends Controller {
         }
 
         return $program;
+    }
+
+    /**
+     * grab data for saving
+     *
+     * @var $user User
+     * @return void
+     */
+    public function updateData($user, $source) {
+
+        preg_match_all("/id=\"__VIEWSTATE\" value=\"(.+?)\" \/>/", $source, $out);
+        $__VIEWSTATE = $out[1][0];
+
+        $data = [
+            '__VIEWSTATE' => $__VIEWSTATE,
+        ];
+
+        $user->data = json_encode($data);
+        $user->save();
     }
 }

@@ -16,6 +16,12 @@ class AuthController extends Controller {
     const baseUrl = "http://res.gonbad.ac.ir/";
     const nakedUrl = "res.gonbad.ac.ir";
 
+    /**
+     * Initiate user record and grab captcha
+     *
+     * @var $request Request
+     * @return string
+     */
     public function init(Request $request) {
         $json = new stdClass();
 
@@ -87,7 +93,12 @@ class AuthController extends Controller {
         return json_encode($json);
     }
 
-
+    /**
+     * Login with user info
+     *
+     * @var $request Request
+     * @return string
+     */
     public function login(Request $request) {
         $json = new stdClass();
 
