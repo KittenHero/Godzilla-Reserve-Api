@@ -13,8 +13,8 @@ use stdClass;
 
 class AuthController extends Controller {
 
-    private $baseUrl = "http://res.gonbad.ac.ir/";
-    private $nakedUrl = "res.gonbad.ac.ir";
+    const baseUrl = "http://res.gonbad.ac.ir/";
+    const nakedUrl = "res.gonbad.ac.ir";
 
     public function init(Request $request) {
         $json = new stdClass();
@@ -32,7 +32,7 @@ class AuthController extends Controller {
 
         // declare client with base url and cookies
         $client = new Client([
-            'base_uri' => $this->baseUrl,
+            'base_uri' => self::baseUrl,
             'cookies' => true
         ]);
 
@@ -108,11 +108,11 @@ class AuthController extends Controller {
         $user = User::where('installation_id', $request->installation_id)->first();
 
         $cookies = json_decode($user->cookies);
-        $jar = CookieJar::fromArray($cookies, $this->nakedUrl);
+        $jar = CookieJar::fromArray($cookies, AuthController::nakedUrl);
 
         // declare client with base url and set cookies
         $client = new Client([
-            'base_uri' => $this->baseUrl,
+            'base_uri' => self::baseUrl,
             'cookies' => $jar,
         ]);
 
@@ -141,6 +141,15 @@ class AuthController extends Controller {
             // login successful
             $json->success = true;
 
+            $data = AppController::grabUserData($res);
+
+            $json->name = $data['name'];
+            $json->card = $data['card'];
+            $json->charge = $data['charge'];
+            $json->date = $data['date'];
+
+            $json->program = AppController::grabUserProgram($data['date'], $res);
+
             // save user cookies for future requests
             $user->cookies = json_encode($jar->toArray());
             $user->logged_count += 1;
@@ -152,4 +161,6 @@ class AuthController extends Controller {
 
         return json_encode($json);
     }
+
+
 }
