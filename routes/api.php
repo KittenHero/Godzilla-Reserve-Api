@@ -19,3 +19,5 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 
 Route::post('/init', 'AuthController@init');
 Route::post('/login', 'AuthController@login');
+
+Route::match(['get', 'post'], '/grab', 'AppController@getProgramWithDate');
