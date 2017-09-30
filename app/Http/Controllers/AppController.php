@@ -86,7 +86,7 @@ class AppController extends Controller {
         AppController::updateCookies($user, $jar);
 
         $data = AppController::grabUserData($res);
-        $json->name = $data['name'];
+        $json->name = trim($data['name']);
         $json->card = $data['card'];
         $json->charge = $data['charge'];
         $json->date = $data['date'];
@@ -136,14 +136,21 @@ class AppController extends Controller {
         $program = [];
 
         // grab user reserve data
-        preg_match_all("/<input name=\"GhazaN(\d)\" type=\"text\" value=\"(\d)\"/", $lastRes, $out);
-        for ($i = 0; $i < count($out[1]); $i++) {
-            $id = $out[1][$i];
-            $reserved = $out[2][$i];
+        preg_match_all("/name=\"Ghaza(\S)(\d)\".+?value=\"(\d)\".+?menu\">(.+?)<\/span.+?Edit\S\d.+?value=\"(\d)\"/s", $lastRes, $out);
 
-            $program[] = [
-                'id' => $id,
+        for ($i = 0; $i < count($out[1]); $i++) {
+            $meal = AppController::mealIdToString($out[1][$i]);
+            $id = $out[2][$i];
+
+            $day = AppController::numberDayToStringDay($id);
+            $reserved = ($out[3][$i] == '0') ? false : true;
+            $available = AppController::contains($out[4][$i], 'SelectGhaza');
+            $self = $out[5][$i];
+
+            $program[$id][$meal] = [
                 'reserved' => $reserved,
+                'available' => $available,
+                'self' => $self,
             ];
         }
 
@@ -155,17 +162,17 @@ class AppController extends Controller {
         // grab food program
         $foodListRes = $client->request('GET', 'Ghaza.aspx?date=' . $date);
         $foodListRes = $foodListRes->getBody()->getContents();
-        preg_match_all("/class=\"mainrow\">(.+?)<\/td>.+?<li>(.+?)<\/li>.+?<li>(.+?)<\/li>/is", $foodListRes, $out);
-
+        preg_match_all("/BulletedList(\S)(\d)\".+?<li>(.+?)<\/li>/s", $foodListRes, $out);
         // populate food program
         for ($i = 0; $i < count($out[1]); $i++) {
-            $day = $out[1][$i];
-            $lunch = $out[2][$i];
-            $dinner = $out[3][$i];
+            $meal = AppController::mealIdToString($out[1][$i]);
+            $id = $out[2][$i];
+            $id++;
+            $food = trim($out[3][$i]);
+            if (strlen($food) < 2)
+                $food = 'صبحانه';
 
-            $program[$i]['day'] = $day;
-            $program[$i]['lunch'] = $lunch;
-            $program[$i]['dinner'] = $dinner;
+            $program[$id][$meal]['name'] = $food;
         }
 
         return $program;
@@ -228,5 +235,65 @@ class AppController extends Controller {
         }
 
         return CookieJar::fromArray($parsedCookies, $url);
+    }
+
+    /**
+     * parse meal id to string
+     *
+     * @var $meal string
+     * @return string
+     */
+    public static function mealIdToString($meal) {
+        switch ($meal) {
+            case 'S':
+                return 'dinner';
+            case 'N':
+                return 'lunch';
+            case 'C':
+                return 'breakfast';
+        }
+
+        return '';
+    }
+
+    /**
+     * parse day id to string
+     *
+     * @var $day string
+     * @return string
+     */
+    public static function numberDayToStringDay($day) {
+        switch ($day) {
+            case '1':
+                return 'شنبه';
+            case '2':
+                return 'يکشنبه';
+            case '3':
+                return 'دوشنبه';
+            case '4':
+                return 'سه شنبه';
+            case '5':
+                return 'چهارشنبه';
+            case '6':
+                return 'پنج شنبه';
+            case '7':
+                return 'جمعه';
+        }
+
+        return '';
+    }
+
+    /**
+     * check if a string contains a specific word
+     *
+     * @var $var string
+     * @var $needle string
+     * @return boolean
+     */
+    public static function contains($var, $needle) {
+        if (strpos($var, $needle) !== false)
+            return true;
+        else
+            return false;
     }
 }
