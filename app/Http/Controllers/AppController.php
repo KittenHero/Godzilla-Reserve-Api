@@ -14,18 +14,38 @@ use stdClass;
 class AppController extends Controller {
 
     /**
-     * grab program from time
+     * get next week program
      *
      * @var $request Request
      * @return string
      */
-    public function getProgramWithDate(Request $request) {
+    public function nextWeek(Request $request) {
+        return $this->weekProgram($request, 'btnnextweek1');
+    }
+
+    /**
+     * get previous week program
+     *
+     * @var $request Request
+     * @return string
+     */
+    public function previousWeek(Request $request) {
+        return $this->weekProgram($request, 'btnPriWeek1');
+    }
+
+    /**
+     * get weekly program by command
+     *
+     * @var $request Request
+     * @var $command string
+     * @return string
+     */
+    public function weekProgram($request, $command) {
         $json = new stdClass();
 
         // validate user data
         $validator = Validator::make(Input::all(), [
             'installation_id' => 'required',
-            'date' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -36,14 +56,46 @@ class AppController extends Controller {
         // select user craps
         $user = User::where('installation_id', $request->installation_id)->first();
 
-        $cookies = json_decode($user->cookies);
-        $jar = CookieJar::fromArray($cookies, AuthController::nakedUrl);
+        // parse cookies
+        $jar = AppController::stringCookieToCookieJar($user->cookies, AuthController::nakedUrl);
 
         // declare client with base url and set cookies
         $client = new Client([
             'base_uri' => AuthController::baseUrl,
             'cookies' => $jar,
         ]);
+
+        $data = json_decode($user->data);
+
+        // post them with user data
+        $res = $client->request('post', 'Reserve.aspx', [
+            'allow_redirects' => true,
+            'form_params' => [
+                '__EVENTTARGET' => $command,
+                '__VIEWSTATE' => $data->__VIEWSTATE,
+                '__VIEWSTATEGENERATOR' => $data->__VIEWSTATEGENERATOR,
+                '__EVENTVALIDATION' => $data->__EVENTVALIDATION,
+                '__EVENTARGUMENT' => '',
+                '__VIEWSTATEENCRYPTED' => '',
+            ]
+        ]);
+
+        $res = $res->getBody()->getContents();
+
+        AppController::updateData($user, $res);
+        AppController::updateCookies($user, $jar);
+
+        $data = AppController::grabUserData($res);
+        $json->name = $data['name'];
+        $json->card = $data['card'];
+        $json->charge = $data['charge'];
+        $json->date = $data['date'];
+
+        $json->program = $this->grabUserProgram($data['date'], $res);
+        $user->cookies = json_encode($jar->toArray());
+        $user->save();
+
+        return json_encode($json);
     }
 
     /**
@@ -66,7 +118,7 @@ class AppController extends Controller {
         $charge = $out[1][0];
 
         // grab current date
-        preg_match_all("/Ghaza.aspx\?date=(.+?)'/", $lastRes, $out);
+        preg_match_all("/'Ghaza.aspx\?date=(.+?)'/", $lastRes, $out);
         $date = $out[1][0];
 
         return compact('name', 'card', 'charge', 'date');
@@ -120,21 +172,61 @@ class AppController extends Controller {
     }
 
     /**
+     * update cookies
+     *
+     * @var $user User
+     * @var $cookieJar CookieJar
+     * @return void
+     */
+    public static function updateCookies($user, $cookieJar) {
+        $user->cookies = json_encode($cookieJar->toArray());
+        $user->save();
+    }
+
+    /**
      * grab data for saving
      *
      * @var $user User
      * @return void
      */
-    public function updateData($user, $source) {
-
+    public static function updateData($user, $source) {
         preg_match_all("/id=\"__VIEWSTATE\" value=\"(.+?)\" \/>/", $source, $out);
         $__VIEWSTATE = $out[1][0];
 
+        preg_match_all("/id=\"__VIEWSTATEGENERATOR\" value=\"(.+?)\" \/>/", $source, $out);
+        $__VIEWSTATEGENERATOR = $out[1][0];
+
+        preg_match_all("/id=\"__EVENTVALIDATION\" value=\"(.+?)\" \/>/", $source, $out);
+        $__EVENTVALIDATION = $out[1][0];
+
         $data = [
             '__VIEWSTATE' => $__VIEWSTATE,
+            '__VIEWSTATEGENERATOR' => $__VIEWSTATEGENERATOR,
+            '__EVENTARGUMENT' => '',
+            '__VIEWSTATEENCRYPTED' => '',
+            '__EVENTVALIDATION' => $__EVENTVALIDATION,
+
         ];
 
         $user->data = json_encode($data);
         $user->save();
+    }
+
+    /**
+     * parse string cookie to cookie jar
+     *
+     * @var $cookies string
+     * @var $url string
+     * @return CookieJar
+     */
+    public static function stringCookieToCookieJar($cookies, $url) {
+        $cookies = json_decode($cookies);
+
+        $parsedCookies = [];
+        foreach ($cookies as $cookie) {
+            $parsedCookies[$cookie->Name] = $cookie->Value;
+        }
+
+        return CookieJar::fromArray($parsedCookies, $url);
     }
 }

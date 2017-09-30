@@ -118,8 +118,7 @@ class AuthController extends Controller {
         // select user craps
         $user = User::where('installation_id', $request->installation_id)->first();
 
-        $cookies = json_decode($user->cookies);
-        $jar = CookieJar::fromArray($cookies, AuthController::nakedUrl);
+        $jar = new CookieJar();
 
         // declare client with base url and set cookies
         $client = new Client([
@@ -166,6 +165,9 @@ class AuthController extends Controller {
             $user->logged_count += 1;
             $user->last_login = Carbon::now();
             $user->save();
+
+            AppController::updateData($user, $res);
+            AppController::updateCookies($user, $jar);
         } else {
             $json->success = false;
         }
