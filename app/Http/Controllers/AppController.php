@@ -147,10 +147,13 @@ class AppController extends Controller {
             $available = AppController::contains($out[4][$i], 'SelectGhaza');
             $self = $out[5][$i];
 
+            $program[$id]['id'] = (int)$id;
+            $program[$id]['name'] = AppController::numberDayToStringDay($id);
+
             $program[$id][$meal] = [
                 'reserved' => $reserved,
                 'available' => $available,
-                'self' => $self,
+                'self' => (int)$self,
             ];
         }
 
@@ -174,6 +177,8 @@ class AppController extends Controller {
 
             $program[$id][$meal]['name'] = $food;
         }
+
+        $program = array_values($program);
 
         return $program;
     }
